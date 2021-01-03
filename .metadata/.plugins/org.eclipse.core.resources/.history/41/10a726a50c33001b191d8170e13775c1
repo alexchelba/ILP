@@ -1,0 +1,208 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.javatuples.Quartet;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+public class Navigation extends App {
+	private int made_moves;
+	private String ans_flightpath;
+	private int count_sensors;
+	private ArrayList<Feature> featureList;
+	
+	private Drone start_p;
+	private ArrayList<Polygon> no_fly_polygons;
+	private ArrayList<Sensor> sensors;
+	Navigation(Drone sp, ArrayList<Polygon> nfp, ArrayList<Sensor> s) {
+		start_p = sp;
+		no_fly_polygons = nfp;
+		sensors = s;
+		
+		count_sensors=0;
+		made_moves=0;
+		ans_flightpath = "";
+		featureList = new ArrayList<Feature>();
+	}
+	
+	public String getAns_flightpath() {
+		return ans_flightpath;
+	}
+
+	public ArrayList<Feature> getFeatureList() {
+		return featureList;
+	}
+
+	public int getMade_moves() {
+		return made_moves;
+	}
+
+	public int getCount_sensors() {
+		return count_sensors;
+	}
+
+	public ArrayList<Sensor> getSensors() {
+		return sensors;
+	}
+
+	private static String create_line(int idx, Point ps, int angle, Point pf, String loc) {
+		var lng1 = Double.toString(ps.longitude());
+    	var lat1 = Double.toString(ps.latitude());
+    	var lng2 = Double.toString(pf.longitude());
+    	var lat2 = Double.toString(pf.latitude());
+    	var index = Integer.toString(idx);
+    	var direction = Integer.toString(angle);
+    	var ans = index+","+lng1+","+lat1+","+direction+","+lng2+","+lat2+","+loc+'\n';
+		return ans;
+	}
+	
+	private void transition_to_next(Drone actual_pnt, Drone next_pnt, int angle) {
+    	var location="null";
+    	if(next_pnt.getLabel()>0)
+    		location = sensors.get(next_pnt.getLabel()-1).getLocation();
+    	var t = create_line(made_moves+1, actual_pnt.getP(), angle, next_pnt.getP(), location);
+    	ans_flightpath+=t;
+    	made_moves++;
+	}
+	
+	private void addLineToList(ArrayList<Point> path) {
+		var line = LineString.fromLngLats(path);
+		var geometric_line = Feature.fromGeometry(line);
+		featureList.add(geometric_line);
+	}
+	
+	private Quartet<Integer, Drone, Drone, Integer>
+			   go_to_closest(Drone actual_pnt, int closest_sensor) {
+		var neighbors = actual_pnt.get_neighbors();
+    	var angle = 0;
+    	var minn = UNIT;
+    	var op = Point.fromLngLat(-1, -1);
+    	var next_pnt = new Drone(op);
+    	
+    	for(var i=0;i<neighbors.size();i++) {
+    		
+    		var neighbor = neighbors.get(i);
+    		var li = LineString.fromLngLats(List.of(actual_pnt.getP(), neighbor.getP()));
+    		if(neighbor.getVisited()==0 &&actual_pnt.clearFlightPath(li,no_fly_polygons)) {
+    			
+        		var n_lbl = neighbor.decide_label(sensors, no_fly_polygons);
+        		
+        		if(n_lbl>=0) {
+        			
+	        		if(n_lbl==closest_sensor) {
+	        			
+	        			sensors.get(n_lbl-1).setVisited(1);
+	        			closest_sensor = neighbor.getClosestSensor(sensors).getLabel();
+	        			count_sensors++;
+	        			return Quartet.with(i*10, neighbor, actual_pnt, closest_sensor);
+	        		}
+	        		var num = neighbor.getDistance(sensors.get(closest_sensor-1).getP());
+	        		if(num<minn) {
+	            		minn = num;
+	            		angle = i * 10;
+	            		next_pnt = neighbor;
+	        		}
+        		}
+    		}
+    	}
+    	return Quartet.with(angle, next_pnt, actual_pnt, closest_sensor);
+	}
+	
+	protected void collectData() {
+		var closest_sensor = start_p.getClosestSensor(sensors).getLabel();
+        var path = new ArrayList<Point>();
+        var lbl = start_p.decide_label(sensors, no_fly_polygons);
+        if(lbl>0) {
+        	sensors.get(lbl-1).setVisited(1);
+        	count_sensors++;
+        }
+
+        start_p.setVisited(1);
+        path.add(start_p.getP());
+        var actual_pnt = start_p;
+        var angle_h = -1;
+        while(made_moves<MAX_MOVES) {
+        	
+        	actual_pnt.set_neighbors(path, angle_h);
+        	var x =  go_to_closest(actual_pnt, closest_sensor);
+        	var angle = x.getValue0();
+        	var next_pnt = x.getValue1();
+        	actual_pnt = x.getValue2();
+        	closest_sensor = x.getValue3();
+        	
+        	if(next_pnt.getLabel()>=0) {
+        		
+        		next_pnt.setVisited(1);
+	        	transition_to_next(actual_pnt, next_pnt, angle);
+				path.add(next_pnt.getP());
+	        	actual_pnt = next_pnt;
+        	}
+        	else {
+        		sensors.get(closest_sensor-1).setVisited(1);
+        		var aux = actual_pnt.getClosestSensor(sensors).getLabel();
+        		sensors.get(closest_sensor-1).setVisited(0);
+        		closest_sensor = aux;
+        	}
+        	if(closest_sensor==-2) {
+        		
+        		break;
+        	}
+        	angle_h=angle;
+        }
+        addLineToList(path);
+		goToStart(actual_pnt);
+	}
+	
+	private void goToStart(Drone actual_pnt) {
+		var path_to_start = new ArrayList<Point>();
+		path_to_start.add(actual_pnt.getP());
+		var angle_h=-1;
+        while(made_moves<MAX_MOVES) {
+        	
+        	actual_pnt.set_neighbors(path_to_start, angle_h);
+        	var neighbors = actual_pnt.get_neighbors();
+        	var angle = 0;
+        	var minn = UNIT;
+        	var op = Point.fromLngLat(-1, -1);
+        	var next_pnt = new Drone(op);
+        	
+        	for(var i=0;i<neighbors.size();i++) {
+        		
+        		var neighbor = neighbors.get(i);
+        		var li = LineString.fromLngLats(List.of(actual_pnt.getP(), neighbor.getP()));
+        		if(neighbor.getVisited()==0&&actual_pnt.clearFlightPath(li, no_fly_polygons)) {
+        			
+	        		var n_lbl = neighbor.decide_label(sensors, no_fly_polygons);
+	        		if(n_lbl>=0) {
+	        			
+	        			var dist = neighbor.getDistance(start_p);
+	        			if(dist<minn) {
+	        				
+		        			minn = dist;
+		        			next_pnt = neighbor;
+		        			angle = i*10;
+		        		}
+	        		}
+        		}
+        	}
+        	
+        	next_pnt.setVisited(1);
+        	transition_to_next(actual_pnt, next_pnt, angle);
+			path_to_start.add(next_pnt.getP());
+        	actual_pnt = next_pnt;
+        	angle_h=angle;
+        	if(actual_pnt.getDistance(start_p)<RANGE_WITHIN_SENSOR*UNIT) {
+        		break;
+        	}
+        }
+        
+        if(path_to_start.size()>1) {
+			addLineToList(path_to_start);
+	    }
+	}
+}

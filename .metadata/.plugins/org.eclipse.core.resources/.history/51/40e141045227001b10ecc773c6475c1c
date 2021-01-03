@@ -1,0 +1,58 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+import java.util.PriorityQueue;
+
+import com.mapbox.geojson.Point;
+
+public class PointDetails extends App {
+	private static Point p;
+	private static int label;
+	
+	PointDetails(Point p) {
+		this.p = p;
+		this.label = -2;
+	}
+	
+	PointDetails(Point p, int label) {
+		this.p = p;
+		this.label = label;
+	}
+	
+	public static Point getP() {
+		return p;
+	}
+	
+	public static void setP(Point p) {
+		PointDetails.p = p;
+	}
+	
+	public static int getLabel() {
+		return label;
+	}
+	
+	public static void setLabel(int label) {
+		PointDetails.label = label;
+	}
+	
+	public static double getDistance(PointDetails y) {
+		var x1 = p.longitude();
+		var y1 = p.latitude();
+		var x2 = y.getP().longitude();
+		var y2 = y.getP().latitude();
+		var dist = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+		return dist;
+	}
+	
+	public static PointDetails getClosestSensor(ArrayList<PointDetails> sensors) {
+		PointDetails closest_sensor;
+		double minn = 0;
+		for(var sensor : sensors) {
+			double num = getDistance(sensor);
+			if(num<minn) {
+				minn = num;
+				closest_sensor = sensor;
+			}
+		}
+	}
+}

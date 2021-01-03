@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring accessors="true" comment="Delete element from project &apos;aqmaps&apos;&#x0D;&#x0A;- Original project: &apos;aqmaps&apos;&#x0D;&#x0A;- Original element: &apos;uk.ac.ed.inf.aqmaps.coordsPair.java&apos;" description="Delete element" element1="/src\/main\/java&lt;uk.ac.ed.inf.aqmaps{coordsPair.java" elements="1" flags="589830" id="org.eclipse.jdt.ui.delete" resources="0" stamp="1605456438079" subPackages="false" version="1.0"/>
+</session>

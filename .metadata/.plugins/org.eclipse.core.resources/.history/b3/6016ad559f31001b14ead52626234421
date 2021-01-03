@@ -1,0 +1,105 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+
+public class App 
+{
+	protected static final int MAX_MOVES = 150;
+	protected static final double MOVE_LENGTH = 0.0003;
+	protected static final double RANGE_WITHIN_SENSOR = 0.0002;
+	protected static final double MIN_LNG = -3.192473;
+	protected static final double MAX_LAT = 55.946233;
+	protected static final double MAX_LNG = -3.184319;
+	protected static final double MIN_LAT = 55.942617;
+
+	private static List<Point> makeList(double longi1, double lat1, double longi2, double lat2) {
+		// takes 4 coordinates and creates the 4 extreme points of a square with those coordinates
+		// returns a list of the points
+		
+		var x1 = Point.fromLngLat(longi1, lat1);
+		var x2 = Point.fromLngLat(longi1, lat2);
+		var x3 = Point.fromLngLat(longi2, lat2);
+		var x4 = Point.fromLngLat(longi2, lat1);
+		return List.of(x1,x2,x3,x4,x1);
+	}
+	
+	private static ArrayList<Polygon> polysFromFeatures(FeatureCollection fc) {
+		var feats = fc.features();
+		var polys = new ArrayList<Polygon>();
+		for(var feat : feats) {
+			var poly = (Polygon) feat.geometry();
+			polys.add(poly);
+		}
+		return polys;
+	}
+	
+    public static void main( String[] args )
+    {
+    	var DD = args[0];
+    	var MM = args[1];
+    	var YYYY = args[2];
+    	var START_LAT = Double.parseDouble(args[3]);
+    	var START_LNG = Double.parseDouble(args[4]);
+    	//var RANDOM_SEED = Integer.parseInt(args[5]);
+    	var port = args[6];
+    	
+    	var no_fly = Sensor.parseData("http://localhost:" + port + "/buildings/no-fly-zones.geojson");
+    	var fc = FeatureCollection.fromJson(no_fly);
+    	var no_fly_polygons = polysFromFeatures(fc);
+    	var featureList = fc.features();
+    	// creates the LineString corresponding to the confinement area of the drone
+    	var extremes = makeList(MIN_LNG, MIN_LAT, MAX_LNG, MAX_LAT);
+    	var area = LineString.fromLngLats(extremes);
+    	// transforms it into a feature and adds it to the list of features
+    	var map = Feature.fromGeometry(area);
+    	featureList.add(map);
+    	
+    	// TAKE ALL DAYS'S DATA AND WRITE TO RESPECTIVE FILES
+    	
+    	var quality = Sensor.parseData("http://localhost:"+port+"/maps/"+YYYY+"/"+MM+"/"+DD+"/air-quality-data.json");
+    	var listType = new TypeToken<ArrayList<Sensor>>() {}.getType();
+    	ArrayList<Sensor> sensors = new Gson().fromJson(quality, listType);
+    	var sensor_coords = new ArrayList<PointDetails>();
+    	int k=1;
+    	for(var sensor : sensors) {
+    		var pnt = sensor.getSensorFeature(port);
+    		var p = (Point) pnt.geometry();
+    		var ps = new PointDetails(p,k);
+    		sensor_coords.add(ps);
+    		featureList.add(pnt);
+			k++;
+    	}
+
+        // NAVIGATION ALGORITHM
+        
+    	var start_p = new PointDetails(Point.fromLngLat(START_LNG, START_LAT));
+    	var nav = new Navigation(start_p, no_fly_polygons, sensors, sensor_coords);
+    	nav.navi();
+    	
+    	System.out.println(nav.getCount_sensors() + " " +nav.getMade_moves());
+    	
+    	featureList.addAll(nav.getFeatureList());
+    	var final_fc = FeatureCollection.fromFeatures(featureList);
+    	
+    	var flightpath = "flightpath-" + DD + "-" + MM + "-" + YYYY + ".txt";
+    	var readings = "readings-" + DD + "-" + MM + "-" + YYYY + ".geojson";
+    	var fp = new FileEdit("ilp-results/" + flightpath);
+    	var rd = new FileEdit("ilp-results/" + readings);
+    	fp.createFile();
+    	rd.createFile();
+    	
+    	rd.writejsonFile(final_fc);
+    	fp.writetxtFile(nav.getAns_flightpath());
+    }
+}

@@ -1,0 +1,419 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse.BodyHandlers;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+
+public class App 
+{
+	protected static final int MAX_MOVES = 150;
+	protected static final double MOVE_LENGTH = 0.0003;
+	
+	protected static final double RANGE_WITHIN_SENSOR = 0.0002;
+	protected static final double MIN_LNG = -3.192473;
+	protected static final double MAX_LAT = 55.946233;
+	protected static final double MAX_LNG = -3.184319;
+	protected static final double MIN_LAT = 55.942617;
+	
+	private static String parseData(String urlString) {
+		
+		try {
+			try {
+				var client = HttpClient.newHttpClient();
+				var request = HttpRequest.newBuilder()
+						.uri(URI.create(urlString))
+						.build();
+				var response = client.send(request, BodyHandlers.ofString());
+				String bing = response.body();
+				return bing;
+			}catch(IOException e) {
+				System.out.println("An IOerror occurred.");
+				e.printStackTrace();
+			}
+		}catch(InterruptedException e) {
+			System.out.println("An INTerror occurred.");
+			e.printStackTrace();
+		}
+		return "error.";
+	}
+	
+	private static void createFile(String filename) {
+		// takes a string as input and checks if a file with that name exists.
+		// if not, it creates one.
+		// throws error if it can't create the file
+		
+		try {
+			
+			var myObj = new File(filename);
+			if (myObj.createNewFile()) {
+				
+				System.out.println("File created: " + myObj.getName());
+			} else {
+				
+				System.out.println("File already exists.");
+			}
+		} catch (IOException e) {
+			
+			System.out.println("An error occurred.");
+			e.printStackTrace();
+		}
+	}
+	
+	private static void writejsonFile(String filename, FeatureCollection fc) {
+		// writes a geojson-formatted string representation of the FeatureCollection object
+		// in the file with name filename.
+		// throws error if it can't write in the file
+		
+		try {
+			var myWriter = new FileWriter(filename);
+			var gson = new GsonBuilder().setPrettyPrinting().create();
+			var js = JsonParser.parseString(fc.toJson()).getAsJsonObject();
+			myWriter.write(gson.toJson(js));
+			myWriter.close();
+			System.out.println("Successfully wrote to the file.");
+		} catch (IOException e) {
+			
+			System.out.println("An error occurred.");
+			e.printStackTrace();
+		}
+	}
+	
+	private static void writetxtFile(String filename, String text) {
+		// writes a given string "text" in a txt file "filename"
+		// throws error if it can't write in the file
+		
+		try {
+			
+			var myWriter = new FileWriter(filename);
+			myWriter.write(text);
+			myWriter.close();
+			System.out.println("Successfully wrote to the file.");
+		} catch (IOException e) {
+			
+			System.out.println("An error occurred.");
+			e.printStackTrace();
+		}
+	}
+	
+	private static List<Point> makeList(double longi1, double lat1, double longi2, double lat2) {
+		// takes 4 coordinates and creates the 4 extreme points of a square with those coordinates
+		// returns a list of the points
+		
+		var x1 = Point.fromLngLat(longi1, lat1);
+		var x2 = Point.fromLngLat(longi1, lat2);
+		var x3 = Point.fromLngLat(longi2, lat2);
+		var x4 = Point.fromLngLat(longi2, lat1);
+		return List.of(x1,x2,x3,x4,x1);
+	}
+	
+	private static String colorDecider(double x) {
+		// Takes integer x and outputs the corresponding rgb-string, based on coursework sheet
+		// returns a string representing the rgb-string
+		// returns rgb-string for low battery in case x is out of bounds (x<0 or x>=256)
+		
+		if(0<=x && x<32) return "#00ff00";
+		else
+		if(32<=x && x<64) return "#40ff00";
+		else
+		if(64<=x && x<96) return "#80ff00";
+		else
+		if(96<=x && x<128) return "#c0ff00";
+		else
+		if(128<=x && x<160) return "#ffc000";
+		else
+		if(160<=x && x<192) return "#ff8000";
+		else
+		if(192<=x && x<224) return "#ff4000";
+		else
+		if(224<=x && x<256) return "#ff0000";
+		else
+		if(-1<=x && x<0) return "#000000";
+		else
+		return "#aaaaaa";
+	}
+	
+	private static String symbolDecider(double x) {
+		if(0<=x && x<128) return "lighthouse";
+		else
+		if(128<=x && x<256) return "danger";
+		else
+		if(-1<=x && x<0) return "cross";
+		else
+		return "";
+	}
+	
+	private static Feature getSensorFeature(Sensor sensor, String port) {
+		String loc = sensor.getLocation();
+		String[] order = loc.split("\\.");
+		String location = order[0]+"/"+order[1]+"/"+order[2];
+		String details = parseData("http://localhost:80/words/" + location + "/details.json");
+		var detail = new Gson().fromJson(details, SensorDetails.class);
+		var lng = detail.getCoordinates().getLng();
+		var lat = detail.getCoordinates().getLat();
+		var point = Point.fromLngLat(lng, lat);
+		var pnt = Feature.fromGeometry(point);
+		pnt.addStringProperty("location", loc);
+		String color, symbol;
+		if(sensor.getBattery()<10) {
+			color = colorDecider(-1);
+			symbol = symbolDecider(-1);
+   		}
+		else {
+			var x = Double.parseDouble(sensor.getReading());
+			color = colorDecider(x);
+			symbol = symbolDecider(x);
+		}
+		pnt.addStringProperty("rgb-string", color);
+		pnt.addStringProperty("marker-color", color);
+		pnt.addStringProperty("marker-symbol", symbol);
+		return pnt;
+	}
+	
+	private static ArrayList<Polygon> polysFromFeatures(FeatureCollection fc) {
+		var feats = fc.features();
+		var polys = new ArrayList<Polygon>();
+		for(var feat : feats) {
+			var poly = (Polygon) feat.geometry();
+			polys.add(poly);
+		}
+		return polys;
+	}
+	
+	private static String create_name(int idx, Point ps, int angle, Point pf, String loc) {
+		var lng1 = Double.toString(ps.longitude());
+    	var lat1 = Double.toString(ps.latitude());
+    	var lng2 = Double.toString(pf.longitude());
+    	var lat2 = Double.toString(pf.latitude());
+    	var index = Integer.toString(idx);
+    	var direction = Integer.toString(angle);
+    	var ans = index+","+lng1+","+lat1+","+direction+","+lng2+","+lat2+","+loc+'\n';
+		return ans;
+	}
+	
+    public static void main( String[] args )
+    {
+    	var DD = args[0];
+    	var MM = args[1];
+    	var YYYY = args[2];
+    	var START_LAT = Double.parseDouble(args[3]);
+    	var START_LNG = Double.parseDouble(args[4]);
+    	var RANDOM_SEED = Integer.parseInt(args[5]);
+    	var port = args[6];
+    	
+    	var no_fly = parseData("http://localhost:" + port + "/buildings/no-fly-zones.geojson");
+    	var fc = FeatureCollection.fromJson(no_fly);
+    	var polygons = polysFromFeatures(fc);
+    	var featureList = fc.features();
+    	// creates the LineString corresponding to the confinement area of the drone
+    	var extremes = makeList(MIN_LNG, MIN_LAT, MAX_LNG, MAX_LAT);
+    	var area = LineString.fromLngLats(extremes);
+    	// transforms it into a feature and adds it to the list of features
+    	var map = Feature.fromGeometry(area);
+    	featureList.add(map);
+    	
+    	// TAKE ALL DAYS'S DATA AND WRITE TO RESPECTIVE FILES
+    	
+    	var quality = parseData("http://localhost:"+port+"/maps/"+YYYY+"/"+MM+"/"+DD+"/air-quality-data.json");
+    	var listType = new TypeToken<ArrayList<Sensor>>() {}.getType();
+    	ArrayList<Sensor> sensors = new Gson().fromJson(quality, listType);
+    	var sensor_coords = new ArrayList<PointDetails>();
+    	int k=1;
+    	for(var sensor : sensors) {
+    		var pnt = getSensorFeature(sensor, port);
+    		var p = (Point) pnt.geometry();
+    		var ps = new PointDetails(p,k);
+    		sensor_coords.add(ps);
+    		featureList.add(pnt);
+			k++;
+    	}
+
+        // NAVIGATION ALGORITHM
+        
+    	var ans_flightpath = "";
+    	var start_p = new PointDetails(Point.fromLngLat(START_LNG, START_LAT));
+    	var count_sensors=0;
+    	var closest_sensor = start_p.getClosestSensor(sensor_coords).getLabel();
+        var made_moves = 0;
+        var path = new ArrayList<Point>();
+        var lbl = start_p.decide_label(sensor_coords, polygons);
+        
+        if(lbl>0) {
+        	sensor_coords.get(lbl-1).setVisited(1);
+        	count_sensors++;
+        }
+
+        start_p.setVisited(1);
+        path.add(start_p.getP());
+        var actual_pnt = start_p;
+        
+        while(made_moves<MAX_MOVES) {
+        	
+        	actual_pnt.set_neighbors(path);
+        	var neighbors = actual_pnt.get_neighbors();
+        	var angle = 0;
+        	var minn = 1000.0;
+        	var op = Point.fromLngLat(-1, -1);
+        	var next_pnt = new PointDetails(op);
+        	
+        	for(var i=0;i<neighbors.size();i++) {
+        		
+        		var neighbor = neighbors.get(i);
+        		if(neighbor.getVisited()==0&&actual_pnt.clearFlightPath(i,polygons)) {
+        			
+	        		var n_lbl = neighbor.decide_label(sensor_coords, polygons);
+	        		
+	        		if(n_lbl>=0) {
+	        			
+		        		if(n_lbl==closest_sensor) {
+		        			
+		        			sensor_coords.get(n_lbl-1).setVisited(1);
+		        			closest_sensor = neighbor.getClosestSensor(sensor_coords).getLabel();
+		        			count_sensors++;
+		        			next_pnt = neighbor;
+		        			angle = i * 10;
+		        			minn=800.0;
+		        			break;
+		        		}
+		        		else if(n_lbl==0){
+		        			
+		        			var num = neighbor.getDistance(sensor_coords.get(closest_sensor-1));
+		        			if(num<minn) {
+		            			minn = num;
+		            			angle = i * 10;
+		            			next_pnt = neighbor;
+		            		}
+		        		}
+		        		else {
+		        			
+		        			if(sensor_coords.get(n_lbl-1).getVisited()==0) {
+			        			sensor_coords.get(n_lbl-1).setVisited(1);
+			        			count_sensors++;
+		        			}
+			        		var num = neighbor.getDistance(sensor_coords.get(closest_sensor-1));
+			        		if(num<minn) {
+			        			minn = num;
+			        			angle = i * 10;
+			        			next_pnt = neighbor;
+		        			}
+		        		}
+	        		}
+        		}
+        	}
+        	
+        	if(next_pnt.getLabel()==-2||minn==1000.0) {
+        		
+        		sensor_coords.get(closest_sensor-1).setVisited(1); 
+        		var x = actual_pnt.getClosestSensor(sensor_coords).getLabel();
+        		sensor_coords.get(closest_sensor-1).setVisited(0);
+        		closest_sensor=x;
+        	}
+        	else {
+        		
+	        	next_pnt.setVisited(1);
+	        	var location="null";
+	        	if(next_pnt.getLabel()>0)
+	        		location = sensors.get(next_pnt.getLabel()-1).getLocation();
+	        	var t = create_name(made_moves+1, actual_pnt.getP(), angle, next_pnt.getP(), location);
+	        	ans_flightpath+=t;
+				path.add(next_pnt.getP());
+	        	made_moves++;
+	        	actual_pnt = next_pnt;
+        	}
+        	if(closest_sensor==-2) {
+        		
+        		break;
+        	}
+        }
+        
+        var line = LineString.fromLngLats(path);
+		var geometric_line = Feature.fromGeometry(line);
+		featureList.add(geometric_line);
+		
+		// RETURN TO STARTING POINT
+		
+		var path_to_start = new ArrayList<Point>();
+		path_to_start.add(actual_pnt.getP());
+		
+        while(made_moves<MAX_MOVES) {
+        	
+        	actual_pnt.set_neighbors(path_to_start);
+        	var neighbors = actual_pnt.get_neighbors();
+        	var angle = 0;
+        	var minn = 1000.0;
+        	var op = Point.fromLngLat(-1, -1);
+        	var next_pnt = new PointDetails(op);
+        	
+        	for(var i=0;i<neighbors.size();i++) {
+        		
+        		var neighbor = neighbors.get(i);
+        		if(neighbor.getVisited()==0&&actual_pnt.clearFlightPath(i,polygons)) {
+        			
+	        		var n_lbl = neighbor.decide_label(sensor_coords, polygons);
+	        		if(n_lbl>=0) {
+	        			
+	        			var dist = neighbor.getDistance(start_p);
+	        			if(dist<minn) {
+	        				
+		        			minn = dist;
+		        			next_pnt = neighbor;
+		        			angle = i*10;
+		        		}
+	        		}
+        		}
+        	}
+        	
+        	next_pnt.setVisited(1);
+        	var location="null";
+        	if(next_pnt.getLabel()>0)
+        		location = sensors.get(next_pnt.getLabel()-1).getLocation();
+        	var t = create_name(made_moves+1, actual_pnt.getP(), angle, next_pnt.getP(), location);
+        	ans_flightpath+=t;
+			path_to_start.add(next_pnt.getP());
+        	made_moves++;
+        	actual_pnt = next_pnt;
+        	if(actual_pnt == start_p||actual_pnt.getDistance(start_p)<RANGE_WITHIN_SENSOR) {
+        		
+        		break;
+        	}
+        }
+        
+        if(path_to_start.size()>1) {
+        	
+	        var return_line = LineString.fromLngLats(path_to_start);
+			var geometric_return_line = Feature.fromGeometry(return_line);
+			featureList.add(geometric_return_line);
+	    }
+
+        System.out.println(count_sensors + " " +made_moves);
+        
+    	var final_fc = FeatureCollection.fromFeatures(featureList);
+    	var flightpath = "flightpath-" + DD + "-" + MM + "-" + YYYY + ".txt";
+    	var readings = "readings-" + DD + "-" + MM + "-" + YYYY + ".geojson";
+    	
+    	createFile(flightpath);
+    	createFile(readings);
+    	
+    	writejsonFile(readings, final_fc);
+    	writetxtFile(flightpath, ans_flightpath);
+    }
+}

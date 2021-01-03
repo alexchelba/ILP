@@ -1,0 +1,217 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+import org.javatuples.Pair;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+public class Navigation extends App {
+	private int made_moves;
+	private String ans_flightpath;
+	private int count_sensors;
+	private ArrayList<Feature> featureList;
+	
+	private Drone start_p;
+	private ArrayList<Polygon> no_fly_polygons;
+	private ArrayList<Sensor> sensors;
+	Navigation(Drone sp, ArrayList<Polygon> nfp, ArrayList<Sensor> s) {
+		start_p = sp;
+		no_fly_polygons = nfp;
+		sensors = s;
+		
+		count_sensors=0;
+		made_moves=0;
+		ans_flightpath = "";
+		featureList = new ArrayList<Feature>();
+	}
+	
+	protected String getAns_flightpath() {
+		return ans_flightpath;
+	}
+
+	protected ArrayList<Feature> getFeatureList() {
+		return featureList;
+	}
+
+	protected int getMade_moves() {
+		return made_moves;
+	}
+
+	protected int getCount_sensors() {
+		return count_sensors;
+	}
+
+	protected ArrayList<Sensor> getSensors() {
+		return sensors;
+	}
+
+	private static String create_line(int idx, Point ps, int angle, Point pf, String loc) {
+		// Takes input an integer, representing the index of the line
+		// 2 points, representing the initial point (ps) and the destination point (pf)
+		// an integer, representing the angle at which pf is found from ps
+		// and a string, representing the location of the destination point
+		// Returns a string, representing a line with all the required details
+		
+		//DecimalFormat formatter = new DecimalFormat("#0.000000");
+		//String s = formatter.format(d);
+		
+		var lng1 = BigDecimal.valueOf(ps.longitude());
+    	var lat1 = BigDecimal.valueOf(ps.latitude());
+    	var lng2 = BigDecimal.valueOf(pf.longitude());
+    	var lat2 = BigDecimal.valueOf(pf.latitude());
+    	var index = Integer.toString(idx);
+    	var direction = Integer.toString(angle);
+    	var ans = index+","+lng1+","+lat1+","+direction+","+lng2+","+lat2+","+loc+'\n';
+		return ans;
+	}
+	
+	private void transition_to_next(Drone actual_pnt, Drone next_pnt, int angle) {
+		// Takes input an integer, representing the angle at which the drone travels
+		// and 2 Drone objects, representing the drone's actual state (actual_pnt)
+		// and the drone's next state (next_pnt)
+		// Modifies ans_flightpath and increases made_moves
+		
+    	var location="null";
+    	if(next_pnt.getLabel()>0)
+    		location = sensors.get(next_pnt.getLabel()-1).getLocation();
+    	var t = create_line(made_moves+1, actual_pnt.getP(), angle, next_pnt.getP(), location);
+    	ans_flightpath+=t;
+    	made_moves++;
+	}
+	
+	private void addLineToList(ArrayList<Point> path) {
+		// Takes input a list of points, representing the path traveled by the drone
+		// Creates a feature out of it and adds it to featureList
+		
+		var line = LineString.fromLngLats(path);
+		var geometric_line = Feature.fromGeometry(line);
+		featureList.add(geometric_line);
+	}
+	
+	private Pair<Integer, Drone>
+			   go_to_closest(Drone actual_pnt, int closest_sensor) {
+		// Takes input a Drone object, representing the drone's present state
+		// and an integer, representing the label of the closest sensor to the drone
+		// Returns a tuple formed of:
+		//        * the angle at which the possible next state is found
+		//        * the drone's possible next state
+		
+		var neighbors = actual_pnt.getNeighbors();
+    	var angle = 0;
+    	var minn = UNIT;
+    	var op = Point.fromLngLat(-1, -1);
+    	var next_pnt = new Drone(op);
+    	
+    	for(var i=0;i<neighbors.size();i++) {
+    		
+    		var neighbor = neighbors.get(i);
+    		var li = LineString.fromLngLats(List.of(actual_pnt.getP(), neighbor.getP()));
+    		if(!neighbor.getVisited() &&actual_pnt.clearFlightPath(li,no_fly_polygons)) {
+    			
+        		var n_lbl = neighbor.decide_label(sensors, no_fly_polygons);
+        		
+        		if(n_lbl>=0) {
+        			
+        			var num=minn;
+        			if(closest_sensor<34) {
+		        		if(n_lbl==closest_sensor) {
+		        			
+		        			return Pair.with(i*10, neighbor);
+		        		}
+		        		num = neighbor.getDistance(sensors.get(closest_sensor-1).getP());
+	        		}
+        			else num = neighbor.getDistance(start_p.getP());
+	        		if(num<minn) {
+	            		minn = num;
+	            		angle = i * 10;
+	            		next_pnt = neighbor;
+	        		}
+        		}
+    		}
+    	}
+    	return Pair.with(angle, next_pnt);
+	}
+	
+	private void collectData(Drone actual_pnt, int closest_sensor) {
+		// Takes input a Drone object, representing where the drone is
+		// and an integer, representing the label of the closest sensor to the drone
+		// if closest_sensor = 34, that means we seek to return to the starting point
+		
+		var path_added = false;
+        var path = new ArrayList<Point>();
+        path.add(actual_pnt.getP());
+        var angle_h = -1;
+        while(made_moves<MAX_MOVES) {
+        	
+        	actual_pnt.setNeighbors(path, angle_h);
+        	var x =  go_to_closest(actual_pnt, closest_sensor);
+        	var angle = x.getValue0();
+        	var next_pnt = x.getValue1();
+        	var label = next_pnt.getLabel();
+        	if(label>=0) {
+        		
+        		if(label == closest_sensor) {
+        			sensors.get(label-1).setVisited(true);
+        			count_sensors++;
+        			closest_sensor = next_pnt.getClosestSensor(sensors).getLabel();
+        		}
+	        	transition_to_next(actual_pnt, next_pnt, angle);
+				path.add(next_pnt.getP());
+	        	actual_pnt = next_pnt;
+	        	angle_h=angle;
+        	}
+        	else {
+        		if(angle<180) angle_h = angle+180;
+        		else angle_h = angle-180;
+        	}
+        	
+        	if(closest_sensor==-2) {
+        		
+        		path_added=true;
+        		addLineToList(path);
+        		collectData(actual_pnt,34);
+        		break;
+        	}
+        	else
+        	if(closest_sensor==34) {
+        		
+        		if(actual_pnt.getDistance(start_p.getP())<RANGE_WITHIN_SENSOR) {
+        			path_added=true;
+        			if(path.size()>1) addLineToList(path);
+            		break;
+            	}
+        	}
+        	
+        }
+        if(!path_added && path.size()>1) addLineToList(path);
+	}
+
+	protected void main() {
+		// The algorithm constructs a path for the drone, using a Greedy logic:
+		// 			1. the drone flies towards the closest sensor
+		//			2. collects the data and marks it as visited
+		// 			3. calculates the new closest sensor to the drone, not visited yet
+		//			4. if all sensors are visited, drone goes back to the starting point
+		// The algorithm stops when either:
+		//			* it has reached the maximum number of moves available
+		//			* OR it is within range of the starting point
+		
+		var lbl = start_p.decide_label(sensors, no_fly_polygons);
+        if(lbl>0) {
+        	sensors.get(lbl-1).setVisited(true);
+        	count_sensors++;
+        }
+        var closest_sensor = start_p.getClosestSensor(sensors).getLabel();
+        collectData(start_p, closest_sensor);
+	}
+}

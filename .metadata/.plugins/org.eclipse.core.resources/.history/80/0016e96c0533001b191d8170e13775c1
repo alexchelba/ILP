@@ -1,0 +1,123 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+
+public class App 
+{
+	protected static final int MAX_MOVES = 150;
+	protected static final double MOVE_LENGTH = 0.0003;
+	protected static final double RANGE_WITHIN_SENSOR = 0.0002;
+	protected static final double MIN_LNG = -3.192473;
+	protected static final double MAX_LAT = 55.946233;
+	protected static final double MAX_LNG = -3.184319;
+	protected static final double MIN_LAT = 55.942617;
+	protected static final double UNIT = 1000000.0;
+
+	private static ArrayList<Polygon> getNoFlyZones(String port) {
+		
+		var nfz = "http://localhost:" + port + "/buildings/no-fly-zones.geojson";
+		var no_fly = Sensor.parseData(nfz);
+    	var fc = FeatureCollection.fromJson(no_fly);
+		var feats = fc.features();
+		var polys = new ArrayList<Polygon>();
+		for(var feat : feats) {
+			var poly = (Polygon) feat.geometry();
+			polys.add(poly);
+		}
+		return polys;
+	}
+	
+	protected static ArrayList<Feature> getSensorFeatures(ArrayList<Drone> sensor_coords, ArrayList<Sensor> sensors) {
+		
+		var featureList = new ArrayList<Feature>();
+		for(int i=0;i<sensor_coords.size();i++) {
+			
+			var sensor = sensors.get(i);
+			var sns = Feature.fromGeometry(sensor_coords.get(i).getP());
+			var vis = sensor_coords.get(i).getVisited();
+			sns.addStringProperty("location", sensor.getLocation());
+			String color, symbol;
+			if(vis==0) {
+				color = sensor.colorDecider(-2);
+				symbol = sensor.symbolDecider(-2);
+			}
+			else {
+				if(sensor.getBattery()<10) {
+					color = sensor.colorDecider(-1);
+					symbol = sensor.symbolDecider(-1);
+		   		}
+				else {
+					var x = Double.parseDouble(sensor.getReading());
+					color = sensor.colorDecider(x);
+					symbol = sensor.symbolDecider(x);
+				}
+			}
+			sns.addStringProperty("rgb-string", color);
+			sns.addStringProperty("marker-color", color);
+			sns.addStringProperty("marker-symbol", symbol);
+			featureList.add(sns);
+		}
+		return featureList;
+	}
+	
+    public static void main( String[] args )
+    {
+    	var DD = args[0];
+    	var MM = args[1];
+    	var YYYY = args[2];
+    	var START_LAT = Double.parseDouble(args[3]);
+    	var START_LNG = Double.parseDouble(args[4]);
+    	var port = args[6];
+    	
+    	var no_fly_polygons = getNoFlyZones(port);
+    	var featureList = new ArrayList<Feature>();
+    	
+    	// TAKE ALL DAYS'S DATA AND WRITE TO RESPECTIVE FILES
+    	var aqd = "http://localhost:"+port+"/maps/"+YYYY+"/"+MM+"/"+DD+"/air-quality-data.json";
+    	var quality = Sensor.parseData(aqd);
+    	var listType = new TypeToken<ArrayList<Sensor>>() {}.getType();
+    	ArrayList<Sensor> sensors = new Gson().fromJson(quality, listType);
+    	var sensor_coords = new ArrayList<Drone>();
+    	int k=1;
+    	for(var sensor : sensors) {
+    		var p = sensor.getSensorPoint(port);
+    		var ps = new Drone(p,k);
+    		sensor_coords.add(ps);
+			k++;
+    	}
+
+        // NAVIGATION ALGORITHM
+        
+    	var start_p = new Drone(Point.fromLngLat(START_LNG, START_LAT));
+    	var nav = new Navigation(start_p, no_fly_polygons, sensors, sensor_coords);
+    	nav.collectData();
+    	
+    	var sensor_features = getSensorFeatures(nav.getSensor_coords(), sensors);
+    	
+    	System.out.println(nav.getCount_sensors() + " " +nav.getMade_moves());
+    	
+    	featureList.addAll(nav.getFeatureList());
+    	var final_fc = FeatureCollection.fromFeatures(featureList);
+    	
+    	var flightpath = "flightpath-" + DD + "-" + MM + "-" + YYYY + ".txt";
+    	var readings = "readings-" + DD + "-" + MM + "-" + YYYY + ".geojson";
+    	var fp = new FileEdit(flightpath);
+    	var rd = new FileEdit(readings);
+    	fp.createFile();
+    	rd.createFile();
+    	
+    	rd.writejsonFile(final_fc);
+    	fp.writetxtFile(nav.getAns_flightpath());
+    }
+}

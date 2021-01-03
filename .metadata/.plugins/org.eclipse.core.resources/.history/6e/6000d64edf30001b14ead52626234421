@@ -1,0 +1,92 @@
+package uk.ac.ed.inf.aqmaps;
+
+import com.google.gson.Gson;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.Point;
+
+public class Sensor extends App {
+	private String location;
+	private double battery;
+	private String reading;
+	public String getLocation() {
+		return location;
+	}
+	public void setLocation(String location) {
+		this.location = location;
+	}
+	public double getBattery() {
+		return battery;
+	}
+	public void setBattery(Double battery) {
+		this.battery = battery;
+	}
+	public String getReading() {
+		return reading;
+	}
+	public void setReading(String reading) {
+		this.reading = reading;
+	}
+	
+	private static String colorDecider(double x) {
+		// Takes integer x and outputs the corresponding rgb-string, based on coursework sheet
+		// returns a string representing the rgb-string
+		// returns rgb-string for low battery in case x is out of bounds (x<0 or x>=256)
+		
+		if(0<=x && x<32) return "#00ff00";
+		else
+		if(32<=x && x<64) return "#40ff00";
+		else
+		if(64<=x && x<96) return "#80ff00";
+		else
+		if(96<=x && x<128) return "#c0ff00";
+		else
+		if(128<=x && x<160) return "#ffc000";
+		else
+		if(160<=x && x<192) return "#ff8000";
+		else
+		if(192<=x && x<224) return "#ff4000";
+		else
+		if(224<=x && x<256) return "#ff0000";
+		else
+		if(-1<=x && x<0) return "#000000";
+		else
+		return "#aaaaaa";
+	}
+	
+	private static String symbolDecider(double x) {
+		if(0<=x && x<128) return "lighthouse";
+		else
+		if(128<=x && x<256) return "danger";
+		else
+		if(-1<=x && x<0) return "cross";
+		else
+		return "";
+	}
+	
+	protected static Feature getSensorFeature(String port) {
+		String loc = this.location;
+		String[] order = loc.split("\\.");
+		String location = order[0]+"/"+order[1]+"/"+order[2];
+		String details = parseData("http://localhost:" +port+ "/words/" + location + "/details.json");
+		var detail = new Gson().fromJson(details, SensorDetails.class);
+		var lng = detail.getCoordinates().getLng();
+		var lat = detail.getCoordinates().getLat();
+		var point = Point.fromLngLat(lng, lat);
+		var pnt = Feature.fromGeometry(point);
+		pnt.addStringProperty("location", loc);
+		String color, symbol;
+		if(sensor.getBattery()<10) {
+			color = colorDecider(-1);
+			symbol = symbolDecider(-1);
+   		}
+		else {
+			var x = Double.parseDouble(sensor.getReading());
+			color = colorDecider(x);
+			symbol = symbolDecider(x);
+		}
+		pnt.addStringProperty("rgb-string", color);
+		pnt.addStringProperty("marker-color", color);
+		pnt.addStringProperty("marker-symbol", symbol);
+		return pnt;
+	}
+}

@@ -1,0 +1,19 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+import java.util.PriorityQueue;
+
+import com.mapbox.geojson.Point;
+
+public class PointDetails extends App {
+	private Point p;
+	private static int label;
+	PointDetails(Point p) {
+		this.p = p;
+		this.label = -2;
+	}
+	PointDetails(Point p, int label) {
+		this.p = p;
+		this.label = label;
+	}
+}

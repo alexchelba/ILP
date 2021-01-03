@@ -1,0 +1,175 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+import com.mapbox.turf.TurfJoins;
+
+public class Drone extends App {
+	private Point p;
+	private int label;
+	private int visited;
+	private ArrayList<Drone> neighbors;
+	
+	Drone(Point p) {
+		this.p = p;
+		this.label = -2;
+		this.visited = 0;
+		this.neighbors = new ArrayList<Drone>();
+	}
+	
+	Drone(Point p, int label) {
+		this.p = p;
+		this.label = label;
+		this.visited = 0;
+		this.neighbors = new ArrayList<Drone>();
+	}
+	
+	public Point getP() {
+		return p;
+	}
+	
+	public void setP(Point p1) {
+		p = p1;
+	}
+	
+	public int getLabel() {
+		return label;
+	}
+	
+	public void setLabel(int label) {
+		this.label = label;
+	}
+	
+	public int getVisited() {
+		return visited;
+	}
+	
+	public void setVisited(int visited) {
+		this.visited = visited;
+	}
+	
+	public ArrayList<Drone> get_neighbors() {
+		return neighbors;
+	}
+	
+	public void set_neighbors(ArrayList<Point> path) {
+		
+		for(var i=0;i<360;i+=10) {
+			var p = checkPointsOnLine(i, MOVE_LENGTH*UNIT);
+			var neighbor = new Drone(p);
+			if(path.contains(p))
+				neighbor.setVisited(1);
+			neighbors.add(neighbor);
+		}
+	}
+	
+	public void normalizeCoords() {
+		var new_lng = BigDecimal.valueOf(p.longitude()/UNIT)
+			    .setScale(6).doubleValue();
+		var new_lat = BigDecimal.valueOf(p.latitude()/UNIT)
+			    .setScale(6).doubleValue();
+		setP(Point.fromLngLat(new_lng, new_lat));
+	}
+	
+	public Point normalizeCoords(Point j) {
+		var new_lng = BigDecimal.valueOf(j.longitude()/UNIT)
+			    .setScale(6).doubleValue();
+		var new_lat = BigDecimal.valueOf(j.latitude()/UNIT)
+			    .setScale(6).doubleValue();
+		return Point.fromLngLat(new_lng, new_lat);
+	}
+	
+	public void amplifyCoords() {
+		var new_lng = p.longitude()*UNIT;
+		var new_lat = p.latitude()*UNIT;
+		setP(Point.fromLngLat(new_lng, new_lat));
+	}
+	
+	public Point amplifyCoords(Point j) {
+		var new_lng = j.longitude()*UNIT;
+		var new_lat = j.latitude()*UNIT;
+		return Point.fromLngLat(new_lng, new_lat);
+	}
+	
+	public double getDistance(Drone y) {
+		var x1 = p.longitude();
+		var y1 = p.latitude();
+		var x2 = y.getP().longitude();
+		var y2 = y.getP().latitude();
+		var dist = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+		return dist;
+	}
+	
+	public Drone getClosestSensor(ArrayList<Drone> sensors) {
+		Drone closest_sensor=sensors.get(0);
+		var minn = UNIT;
+		for(var sensor : sensors) {
+			if(sensor.getVisited()==0) {
+				var num = getDistance(sensor);
+				if(num<minn) {
+					minn = num;
+					closest_sensor = sensor;
+				}
+			}
+		}
+		if(minn==UNIT) {
+			var ans = new Drone(Point.fromLngLat(-1, -1));
+			ans.amplifyCoords();
+			return ans;
+		}
+		return closest_sensor;
+	}
+	
+	public int decide_label(ArrayList<Drone> sensors, ArrayList<Polygon> polys) {
+		if(p.longitude()<MIN_LNG||p.latitude()<MIN_LAT || p.longitude()>MAX_LNG || p.latitude()>MAX_LAT) {
+			label=-1;
+			return -1;
+		}
+		for(var poly : polys) {
+			if(TurfJoins.inside(p, poly)) {
+				label=-1;
+				return label;
+			}
+		}
+		if(label==-2) {
+			for(var sensor : sensors) {
+				var num = getDistance(sensor);
+				if(num < RANGE_WITHIN_SENSOR*UNIT) {
+					label = sensor.getLabel();
+					return label;
+				}
+			}
+			label=0;
+			return 0;
+		}
+		return label;
+	}
+	
+	public Point checkPointsOnLine(double i, double dist) {
+		var nx = dist * Math.cos(Math.toRadians(i));
+		var ny = dist * Math.sin(Math.toRadians(i));
+		var xnew_lng = p.longitude()*UNIT + nx;
+		var ynew_lat = p.latitude()*UNIT + ny;
+		var new_lng = BigDecimal.valueOf(xnew_lng/UNIT)
+			    .setScale(6).doubleValue();
+		var new_lat = BigDecimal.valueOf(ynew_lat/UNIT)
+			    .setScale(6).doubleValue();
+		return Point.fromLngLat(new_lng, new_lat);
+	}
+	
+	public boolean clearFlightPath(int i, ArrayList<Polygon> polys) {
+		double p = (double)i;
+		for(var k=0.00001*UNIT;k<MOVE_LENGTH*UNIT;k+=0.00001*UNIT) {
+			var j=checkPointsOnLine(p*10, k);
+			for(var poly : polys) {
+				if(TurfJoins.inside(j, poly)) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+}

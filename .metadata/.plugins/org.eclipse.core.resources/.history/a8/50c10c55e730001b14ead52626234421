@@ -1,0 +1,11 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+
+public class Navigation {
+	private int made_moves;
+	private PointDetails start_p;
+	private ArrayList<Polygon> no_fly_polygons;
+	private ArrayList<Sensor> sensors;
+	private ArrayList<PointDetails> sensor_coords;
+}

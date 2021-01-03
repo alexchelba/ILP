@@ -1,0 +1,143 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.PriorityQueue;
+
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+import com.mapbox.turf.TurfJoins;
+
+public class PointDetails extends App {
+	private Point p;
+	private int label;
+	private int visited;
+	private ArrayList<PointDetails> neighbors;
+	
+	PointDetails(Point p) {
+		this.p = p;
+		this.label = -2;
+		this.visited = 0;
+		this.neighbors = new ArrayList<PointDetails>();
+	}
+	
+	PointDetails(Point p, int label) {
+		this.p = p;
+		this.label = label;
+		this.visited = 0;
+		this.neighbors = new ArrayList<PointDetails>();
+	}
+	
+	public Point getP() {
+		return p;
+	}
+	
+	public void setP(Point p1) {
+		p = p1;
+	}
+	
+	public int getLabel() {
+		return label;
+	}
+	
+	public void setLabel(int label) {
+		this.label = label;
+	}
+	
+	public int getVisited() {
+		return visited;
+	}
+	
+	public void setVisited(int visited) {
+		this.visited = visited;
+	}
+	
+	public double getDistance(PointDetails y) {
+		var x1 = p.longitude();
+		var y1 = p.latitude();
+		var x2 = y.getP().longitude();
+		var y2 = y.getP().latitude();
+		var dist = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+		//System.out.println(dist);
+		return dist;
+	}
+	
+	public PointDetails getClosestSensor(ArrayList<PointDetails> sensors) {
+		//System.out.println(sensors.get(0).getP().longitude());
+		PointDetails closest_sensor=sensors.get(0);
+		double minn = 1000;
+		for(var sensor : sensors) {
+			if(sensor.getVisited()==0) {
+				double num = getDistance(sensor);
+				if(num<minn) {
+					minn = num;
+					closest_sensor = sensor;
+				}
+			}
+		}
+		return closest_sensor;
+	}
+	
+	public int decide_label(ArrayList<PointDetails> sensors, ArrayList<Polygon> polys) {
+		if(p.longitude()<MIN_LNG||p.latitude()<MIN_LAT || p.longitude()>MAX_LNG || p.latitude()>MAX_LAT) {
+			label=-1;
+			return -1;
+		}
+		if(label==-2) {
+			for(var poly : polys) {
+				if(TurfJoins.inside(p, poly)) {
+					label=-1;
+					return label;
+				}
+			}
+			for(var sensor : sensors) {
+				double num = getDistance(sensor);
+				//System.out.println(num);
+				if(num < RANGE_WITHIN_SENSOR) {
+					label = sensor.getLabel();
+					return label;
+				}
+			}
+			return 0;
+		}
+		return label;
+	}
+	
+	public void set_neighbors() {
+		
+		for(double i=0;i<360;i+=10) {
+			Double nx = MOVE_LENGTH * Math.cos(Math.toRadians(i));
+			Double ny = MOVE_LENGTH * Math.sin(Math.toRadians(i));
+			Double x = BigDecimal.valueOf(nx)
+				    .setScale(6, RoundingMode.HALF_UP)
+				    .doubleValue();
+			Double y = BigDecimal.valueOf(ny)
+				    .setScale(6, RoundingMode.HALF_UP)
+				    .doubleValue();
+			//System.out.println(truncatedDoublex+" "+ truncatedDoubley);
+			//System.out.println(x.doubleValue() + " " + y.doubleValue());
+			var xnew_lng = p.longitude() + x;
+			var ynew_lat = p.latitude() + y;
+			
+			Double new_lng = BigDecimal.valueOf(xnew_lng)
+				    .setScale(5, RoundingMode.HALF_UP)
+				    .doubleValue();
+			Double new_lat = BigDecimal.valueOf(ynew_lat)
+				    .setScale(5, RoundingMode.HALF_UP)
+				    .doubleValue();
+			
+			var neighbor = new PointDetails(Point.fromLngLat(new_lng, new_lat));
+			//System.out.println(new_lng + " "+ new_lat);
+			neighbors.add(neighbor);
+			//System.out.println(neighbors.get(neighbors.size()-1).getP().longitude() + " "+ neighbors.get(neighbors.size()-1).getP().latitude());
+		}
+	}
+	
+	public ArrayList<PointDetails> get_neighbors() {
+		/*for(var neighbor : neighbors) {
+    		System.out.println(neighbor.getP().longitude() +" "+ neighbor.getP().latitude());
+    	}*/
+		return neighbors;
+	}
+}

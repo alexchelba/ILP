@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<qualifiedTypeNameHistroy>
+    <fullyQualifiedTypeName name="java.net.URI"/>
+    <fullyQualifiedTypeName name="java.net.http.HttpResponse.BodyHandlers"/>
+    <fullyQualifiedTypeName name="java.io.IOException"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.Feature"/>
+    <fullyQualifiedTypeName name="com.google.gson.reflect.TypeToken"/>
+    <fullyQualifiedTypeName name="java.lang.reflect.Type"/>
+    <fullyQualifiedTypeName name="java.net.http.HttpRequest"/>
+    <fullyQualifiedTypeName name="java.net.http.HttpResponse"/>
+    <fullyQualifiedTypeName name="uk.ac.ed.inf.aqmaps.SensorDetails.Coordinates"/>
+    <fullyQualifiedTypeName name="uk.ac.ed.inf.aqmaps.Sensor"/>
+    <fullyQualifiedTypeName name="java.util.PriorityQueue"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.FeatureCollection"/>
+    <fullyQualifiedTypeName name="com.mapbox.turf.TurfJoins"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.PointAsCoordinatesTypeAdapter"/>
+    <fullyQualifiedTypeName name="com.fasterxml.jackson.databind.ObjectMapper"/>
+    <fullyQualifiedTypeName name="com.google.gson.GsonBuilder"/>
+    <fullyQualifiedTypeName name="com.google.gson.stream.JsonWriter"/>
+    <fullyQualifiedTypeName name="com.google.gson.JsonObject"/>
+    <fullyQualifiedTypeName name="com.google.gson.JsonParser"/>
+    <fullyQualifiedTypeName name="uk.ac.ed.inf.aqmaps.App"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.Polygon"/>
+    <fullyQualifiedTypeName name="org.javatuples.Triplet"/>
+    <fullyQualifiedTypeName name="org.javatuples.Tuple"/>
+    <fullyQualifiedTypeName name="org.javatuples.Quintet"/>
+    <fullyQualifiedTypeName name="java.awt.geom.Line2D"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.utils.GeoJsonUtils"/>
+    <fullyQualifiedTypeName name="com.mapbox.turf.models.LineIntersectsResult"/>
+    <fullyQualifiedTypeName name="java.util.List"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.LineString"/>
+    <fullyQualifiedTypeName name="org.javatuples.Quartet"/>
+    <fullyQualifiedTypeName name="java.util.ArrayList"/>
+    <fullyQualifiedTypeName name="org.javatuples.Pair"/>
+    <fullyQualifiedTypeName name="com.mapbox.geojson.Point"/>
+    <fullyQualifiedTypeName name="java.text.DecimalFormat"/>
+    <fullyQualifiedTypeName name="java.text.DecimalFormatSymbols"/>
+    <fullyQualifiedTypeName name="java.util.Locale"/>
+    <fullyQualifiedTypeName name="java.math.BigDecimal"/>
+    <fullyQualifiedTypeName name="java.math.RoundingMode"/>
+</qualifiedTypeNameHistroy>

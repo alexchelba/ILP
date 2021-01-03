@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename type &apos;uk.ac.ed.inf.aqmaps.PointDetails&apos; to &apos;Drone&apos;&#x0D;&#x0A;- Original project: &apos;aqmaps&apos;&#x0D;&#x0A;- Original element: &apos;uk.ac.ed.inf.aqmaps.PointDetails&apos;&#x0D;&#x0A;- Renamed element: &apos;uk.ac.ed.inf.aqmaps.Drone&apos;&#x0D;&#x0A;- Update references to refactored element&#x0D;&#x0A;- Rename similarly named elements&#x0D;&#x0A;- Update textual occurrences in comments and strings" description="Rename type &apos;PointDetails&apos;" flags="589830" id="org.eclipse.jdt.ui.rename.type" input="/src\/main\/java&lt;uk.ac.ed.inf.aqmaps{PointDetails.java[PointDetails" matchStrategy="1" name="Drone" qualified="false" references="true" similarDeclarations="true" stamp="1606587299948" textual="false" version="1.0"/>
+</session>

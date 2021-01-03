@@ -1,0 +1,43 @@
+package uk.ac.ed.inf.aqmaps;
+
+public class SensorDetails extends App {
+	//private String country;
+	//private Square square;
+	//private String nearestPlace;
+	private Coordinates coordinates;
+	//private String words;
+	//private String language;
+	//private String map;
+	
+	public static class Coordinates {
+		private double lng, lat;
+
+		public double getLng() {
+			return lng;
+		}
+
+		public void setLng(double lng) {
+			this.lng = lng;
+		}
+
+		public double getLat() {
+			return lat;
+		}
+
+		public void setLat(double lat) {
+			this.lat = lat;
+		}
+	}
+	
+	public static class Square {
+		private Coordinates southwest, northeast;
+	}
+	
+	public Coordinates getCoordinates() {
+		return coordinates;
+	}
+	
+	public void setCoordinates(Coordinates coords) {
+		this.coordinates = coordinates;
+	}
+}

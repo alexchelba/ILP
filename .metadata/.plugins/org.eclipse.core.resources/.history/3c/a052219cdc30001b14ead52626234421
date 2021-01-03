@@ -1,0 +1,11 @@
+package uk.ac.ed.inf.aqmaps;
+
+import com.mapbox.geojson.FeatureCollection;
+
+public class FileEdit extends App {
+	private String filename;
+	private FeatureCollection fc;
+	FileEdit(String filename, FeatureCollection fc) {
+		
+	}
+}

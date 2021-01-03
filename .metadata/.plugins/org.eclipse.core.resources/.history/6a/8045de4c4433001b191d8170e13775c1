@@ -1,0 +1,29 @@
+package uk.ac.ed.inf.aqmaps;
+
+public class SensorCoords extends App {
+	private Coordinates coordinates;
+	
+	public static class Coordinates {
+		private double lng, lat;
+
+		public double getLng() {
+			return lng;
+		}
+
+		public void setLng(double lng) {
+			this.lng = lng;
+		}
+
+		public double getLat() {
+			return lat;
+		}
+
+		public void setLat(double lat) {
+			this.lat = lat;
+		}
+	}
+	
+	public Coordinates getCoordinates() {
+		return coordinates;
+	}
+}

@@ -1,0 +1,165 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse.BodyHandlers;
+
+import com.google.gson.Gson;
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.Point;
+
+public class Sensor extends App {
+	private String location;
+	private double battery;
+	private String reading;
+	private Point p;
+	private int visited, label;
+	
+	public String getLocation() {
+		return location;
+	}
+	public void setLocation(String location) {
+		this.location = location;
+	}
+	
+	public double getBattery() {
+		return battery;
+	}
+	public void setBattery(Double battery) {
+		this.battery = battery;
+	}
+	
+	public String getReading() {
+		return reading;
+	}
+	public void setReading(String reading) {
+		this.reading = reading;
+	}
+	
+	public Point getP() {
+		return p;
+	}
+	public void setP(Point p1) {
+		this.p = p1;
+	}
+	
+	public int getVisited() {
+		return visited;
+	}
+	public void setVisited(int visited) {
+		this.visited = visited;
+	}
+	
+	public int getLabel() {
+		return label;
+	}
+	public void setLabel(int label) {
+		this.label = label;
+	}
+	
+	protected static String parseData(String urlString) {
+		// Takes input an URL string
+		// Returns a string, corresponding to the data found at the provided URL
+		// Throws error if it can't retrieve the data or if the URL doesn't exist
+		
+		try {
+			try {
+				var client = HttpClient.newHttpClient();
+				var request = HttpRequest.newBuilder()
+						.uri(URI.create(urlString))
+						.build();
+				var response = client.send(request, BodyHandlers.ofString());
+				String bing = response.body();
+				return bing;
+			}catch(IOException e) {
+				System.out.println("An IOerror occurred.");
+				e.printStackTrace();
+			}
+		}catch(InterruptedException e) {
+			System.out.println("An INTerror occurred.");
+			e.printStackTrace();
+		}
+		return "error.";
+	}
+	
+	protected String colorDecider(double x) {
+		// Takes integer x and outputs the corresponding rgb-string, based on coursework sheet
+		// Returns a string representing the rgb-string
+		// If x is -1, it returns the rgb-string for "low battery"
+		// If x is -2, it returns the rgb-string for "not visited"
+		
+		if(0<=x && x<32) return "#00ff00";
+		else
+		if(32<=x && x<64) return "#40ff00";
+		else
+		if(64<=x && x<96) return "#80ff00";
+		else
+		if(96<=x && x<128) return "#c0ff00";
+		else
+		if(128<=x && x<160) return "#ffc000";
+		else
+		if(160<=x && x<192) return "#ff8000";
+		else
+		if(192<=x && x<224) return "#ff4000";
+		else
+		if(224<=x && x<256) return "#ff0000";
+		else
+		if(x==-1) return "#000000";
+		else
+		return "#aaaaaa";
+	}
+	
+	protected String symbolDecider(double x) {
+		// Takes 
+		
+		if(0<=x && x<128) return "lighthouse";
+		else
+		if(128<=x && x<256) return "danger";
+		else
+		if(x==-1) return "cross";
+		else
+		return "";
+	}
+	
+	protected void setSensor(String port, int lbl) {
+		String[] order = location.split("\\.");
+		String location_on_server = order[0]+"/"+order[1]+"/"+order[2];
+		var d = "http://localhost:" +port+ "/words/" + location_on_server + "/details.json";
+		String details = parseData(d);
+		var detail = new Gson().fromJson(details, SensorCoords.class);
+		var lng = detail.getCoordinates().getLng();
+		var lat = detail.getCoordinates().getLat();
+		var point = Point.fromLngLat(lng, lat);
+		p=point;
+		visited=0;
+		label=lbl;
+	}
+	
+	protected Feature getSensorFeature() {
+			
+		var sns = Feature.fromGeometry(p);
+		sns.addStringProperty("location", location);
+		String color, symbol;
+		if(visited==0) {
+			color = colorDecider(-2);
+			symbol = symbolDecider(-2);
+		}
+		else {
+			if(battery<10) {
+				color = colorDecider(-1);
+				symbol = symbolDecider(-1);
+			}
+			else {
+				var x = Double.parseDouble(reading);
+				color = colorDecider(x);
+				symbol = symbolDecider(x);
+			}
+		}
+		sns.addStringProperty("rgb-string", color);
+		sns.addStringProperty("marker-color", color);
+		sns.addStringProperty("marker-symbol", symbol);
+		return sns;
+	}
+}

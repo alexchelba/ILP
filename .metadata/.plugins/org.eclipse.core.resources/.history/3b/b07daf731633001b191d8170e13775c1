@@ -1,0 +1,195 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
+
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+import com.mapbox.turf.TurfJoins;
+
+public class Drone extends App {
+	private Point p;
+	private int label;
+	private int visited;
+	private ArrayList<Drone> neighbors;
+	
+	Drone(Point p) {
+		this.p = p;
+		this.label = -2;
+		this.visited = 0;
+		this.neighbors = new ArrayList<Drone>();
+	}
+	
+	Drone(Point p, int label) {
+		this.p = p;
+		this.label = label;
+		this.visited = 0;
+		this.neighbors = new ArrayList<Drone>();
+	}
+	
+	public Point getP() {
+		return p;
+	}
+	
+	public void setP(Point p1) {
+		p = p1;
+	}
+	
+	public int getLabel() {
+		return label;
+	}
+	
+	public void setLabel(int label) {
+		this.label = label;
+	}
+	
+	public int getVisited() {
+		return visited;
+	}
+	
+	public void setVisited(int visited) {
+		this.visited = visited;
+	}
+	
+	public ArrayList<Drone> get_neighbors() {
+		return neighbors;
+	}
+	
+	public void set_neighbors(ArrayList<Point> path, int angle) {
+		// Takes input a list of points and an integer
+		// List corresponds to the path traversed by the drone
+		// The integer corresponds to the angle at which the drone traveled last time
+		// Sets the neighbor's list, marking as visited the neighbors which are on the path
+		// Or opposite the drone's direction of traveling, at an angle varying 20 degrees left and right
+		
+		for(var i=0;i<360;i+=10) {
+			var p = checkPointsOnLine(i, MOVE_LENGTH*UNIT);
+			var neighbor = new Drone(p);
+			
+			if(path.contains(p))
+				neighbor.setVisited(1);	
+			else
+			if( (0<=angle&&angle<=150) && (i>=angle+90+70&&i<=270-70+angle) )
+				neighbor.setVisited(1);
+			else
+			if( (150<angle&&angle<=180) && (i<=angle-90-70||i>=70+90+angle) )
+				neighbor.setVisited(1);
+			else
+			if( (180<angle&&angle<=190) && (i<=angle-90-70 || i>=70+90+angle) )
+				neighbor.setVisited(1);
+			else
+			if((190<angle&&angle<=330) && (i<=angle-90-70 && i>=70+90+angle-360))
+				neighbor.setVisited(1);
+			else
+			if( (330<angle&&angle<360) && (i<=angle-90-70&&i>=angle-270-70) )
+				neighbor.setVisited(1);
+			
+			neighbors.add(neighbor);
+		}
+	}
+	
+	
+	public double getDistance(Point y) {
+		// Takes input a point
+		// Outputs the Euclidean distance of current object's position to that point
+		
+		var x1 = p.longitude();
+		var y1 = p.latitude();
+		var x2 = y.longitude();
+		var y2 = y.latitude();
+		var dist = Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+		return dist*UNIT;
+	}
+	
+	public Drone getClosestSensor(ArrayList<Sensor> sensors) {
+		// Takes input a list of sensors
+		// Returns the Drone object of the closest sensor to the current object
+		// If all sensors have been visited, returns an object at a location out of the map
+		
+		var closest_sensor=sensors.get(0);
+		var minn = UNIT;
+		for(var sensor : sensors) {
+			if(sensor.getVisited()==0) {
+				var num = getDistance(sensor.getP());
+				if(num<minn) {
+					minn = num;
+					closest_sensor = sensor;
+				}
+			}
+		}
+		if(minn==UNIT) return new Drone(Point.fromLngLat(-1, -1));
+		return new Drone(closest_sensor.getP(), closest_sensor.getLabel());
+	}
+	
+	public int decide_label(ArrayList<Sensor> sensors, ArrayList<Polygon> nfz) {
+		// Takes input a list of sensors and a list of no-fly zones, represented as polygons
+		// Returns
+		
+		if(p.longitude()<MIN_LNG||p.latitude()<MIN_LAT ||
+				p.longitude()>MAX_LNG || p.latitude()>MAX_LAT) {
+			label=-1;
+			return -1;
+		}
+		for(var poly : nfz) {
+			if(TurfJoins.inside(p, poly)) {
+				label=-1;
+				return label;
+			}
+		}
+		if(label==-2) {
+			for(var sensor : sensors) {
+				var num = getDistance(sensor.getP());
+				if(num < RANGE_WITHIN_SENSOR*UNIT) {
+					label = sensor.getLabel();
+					return label;
+				}
+			}
+			label=0;
+			return 0;
+		}
+		return label;
+	}
+	
+	public Point checkPointsOnLine(double i, double dist) {
+		var nx = dist * Math.cos(Math.toRadians(i));
+		var ny = dist * Math.sin(Math.toRadians(i));
+		var xnew_lng = p.longitude()*UNIT + nx;
+		var ynew_lat = p.latitude()*UNIT + ny;
+		var new_lng = BigDecimal.valueOf(xnew_lng/UNIT)
+			    .setScale(6,RoundingMode.HALF_EVEN).doubleValue();
+		var new_lat = BigDecimal.valueOf(ynew_lat/UNIT)
+			    .setScale(6,RoundingMode.HALF_EVEN).doubleValue();
+		return Point.fromLngLat(new_lng, new_lat);
+	}
+	
+	public boolean clearFlightPath(LineString li, ArrayList<Polygon> polys) {
+		for(var poly : polys) {
+			var ls = poly.outer();
+			for (var i = 0; i <= li.coordinates().size()-2; ++i) {
+				for (var j = 0; j <= ls.coordinates().size()-2; ++j) {
+					var a1x = li.coordinates().get(i).longitude();
+					var a1y = li.coordinates().get(i).latitude();
+					var a2x = li.coordinates().get(i+1).longitude();
+					var a2y = li.coordinates().get(i+1).latitude();
+					var b1x = ls.coordinates().get(j).longitude();
+					var b1y = ls.coordinates().get(j).latitude();
+					var b2x = ls.coordinates().get(j+1).longitude();
+					var b2y = ls.coordinates().get(j+1).latitude();
+					var ua_t = (b2x - b1x) * (a1y - b1y) - (b2y - b1y) * (a1x - b1x);
+					var ub_t = (a2x - a1x) * (a1y - b1y) - (a2y - a1y) * (a1x - b1x);
+					var u_b = (b2y - b1y) * (a2x - a1x) - (b2x - b1x) * (a2y - a1y);
+					if (u_b != 0) {
+						var ua = ua_t / u_b;
+						var ub = ub_t / u_b;
+						if (0 <= ua && ua <= 1 && 0 <= ub && ub <= 1) {
+							return false;
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+}

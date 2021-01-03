@@ -1,0 +1,247 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.net.http.HttpResponse.BodyHandlers;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+
+import com.mapbox.geojson.Feature;
+import com.mapbox.geojson.FeatureCollection;
+import com.mapbox.geojson.LineString;
+import com.mapbox.geojson.Point;
+import com.mapbox.geojson.Polygon;
+
+public class App 
+{
+	protected static final int MAX_MOVES = 150;
+	protected static final double MOVE_LENGTH = 0.0003;
+	protected static final double START_LAT = 55.9444;
+	protected static final double START_LNG = -3.1878;
+	protected static final double RANGE_WITHIN_SENSOR = 0.0002;
+	protected static final int RANDOM_SEED = 5678;
+	protected static final double MIN_LNG = -3.192473;
+	protected static final double MAX_LAT = 55.946233;
+	protected static final double MAX_LNG = -3.184319;
+	protected static final double MIN_LAT = 55.942617;
+	
+	private static List<Point> makeList(double longi1, double lat1, double longi2, double lat2) {
+		// takes 4 coordinates and creates the 4 extreme points of a square with those coordinates
+		// returns a list of the points
+		
+		var x1 = Point.fromLngLat(longi1, lat1);
+		var x2 = Point.fromLngLat(longi1, lat2);
+		var x3 = Point.fromLngLat(longi2, lat2);
+		var x4 = Point.fromLngLat(longi2, lat1);
+		return List.of(x1,x2,x3,x4,x1);
+	}
+	
+	private static String colorDecider(double x) {
+		// Takes integer x and outputs the corresponding rgb-string, based on coursework sheet
+		// returns a string representing the rgb-string
+		// returns rgb-string for low battery in case x is out of bounds (x<0 or x>=256)
+		
+		if(0<=x && x<32) return "#00ff00";
+		else
+		if(32<=x && x<64) return "#40ff00";
+		else
+		if(64<=x && x<96) return "#80ff00";
+		else
+		if(96<=x && x<128) return "#c0ff00";
+		else
+		if(128<=x && x<160) return "#ffc000";
+		else
+		if(160<=x && x<192) return "#ff8000";
+		else
+		if(192<=x && x<224) return "#ff4000";
+		else
+		if(224<=x && x<256) return "#ff0000";
+		else
+		if(-1<=x && x<0) return "#000000";
+		else
+		return "#aaaaaa";
+	}
+	
+	private static String symbolDecider(double x) {
+		if(0<=x && x<128) return "lighthouse";
+		else
+		if(128<=x && x<256) return "danger";
+		else
+		if(-1<=x && x<0) return "cross";
+		else
+		return "";
+	}
+	
+	private static String parseData(String urlString) {
+		
+		try {
+			try {
+				var client = HttpClient.newHttpClient();
+				var request = HttpRequest.newBuilder()
+						.uri(URI.create(urlString))
+						.build();
+				var response = client.send(request, BodyHandlers.ofString());
+				String bing = response.body();
+				return bing;
+			}catch(IOException e) {
+				System.out.println("An IOerror occurred.");
+				e.printStackTrace();
+			}
+		}catch(InterruptedException e) {
+			System.out.println("An INTerror occurred.");
+			e.printStackTrace();
+		}
+		return "error.";
+	}
+	
+	private static Feature getSensorFeature(Sensor sensor) {
+		String loc = sensor.getLocation();
+		String[] order = loc.split("\\.");
+		String location = order[0]+"/"+order[1]+"/"+order[2];
+		String details = parseData("http://localhost:80/words/" + location + "/details.json");
+		var detail = new Gson().fromJson(details, SensorDetails.class);
+		var lng = detail.getCoordinates().getLng();
+		var lat = detail.getCoordinates().getLat();
+		var point = Point.fromLngLat(lng, lat);
+		var pnt = Feature.fromGeometry(point);
+		pnt.addStringProperty("location", loc);
+		String color, symbol;
+		if(sensor.getBattery()<10) {
+			color = colorDecider(-1);
+			symbol = symbolDecider(-1);
+   		}
+		else {
+			var x = Double.parseDouble(sensor.getReading());
+			color = colorDecider(x);
+			symbol = symbolDecider(x);
+		}
+		pnt.addStringProperty("rgb-string", color);
+		pnt.addStringProperty("marker-color", color);
+		pnt.addStringProperty("marker-symbol", symbol);
+		return pnt;
+	}
+	
+	private static ArrayList<Polygon> polysFromFeatures(FeatureCollection fc) {
+		var feats = fc.features();
+		var polys = new ArrayList<Polygon>();
+		for(var feat : feats) {
+			var poly = (Polygon) feat.geometry();
+			polys.add(poly);
+		}
+		return polys;
+	}
+	
+    public static void main( String[] args )
+    {
+    	var no_fly = parseData("http://localhost:80/buildings/no-fly-zones.geojson");
+    	var fc = FeatureCollection.fromJson(no_fly);
+    	var polygons = polysFromFeatures(fc);
+    	var featureList = fc.features();
+    	// creates the LineString corresponding to the confinement area of the drone
+    	var extremes = makeList(MIN_LNG, MIN_LAT, MAX_LNG, MAX_LAT);
+    	var area = LineString.fromLngLats(extremes);
+    	// transforms it into a feature and adds it to the list of features
+    	var map = Feature.fromGeometry(area);
+    	featureList.add(map);
+    	
+    	var quality = parseData("http://localhost:80/maps/2021/06/15/air-quality-data.json");
+    	var listType = new TypeToken<ArrayList<Sensor>>() {}.getType();
+    	ArrayList<Sensor> sensors = new Gson().fromJson(quality, listType);
+    	ArrayList<PointDetails> sensor_coords = new ArrayList<PointDetails>();
+    	int k=1;
+    	for(var sensor : sensors) {
+    		var pnt = getSensorFeature(sensor);
+    		var p = (Point) pnt.geometry();
+    		var ps = new PointDetails(p,k);
+    		sensor_coords.add(ps);
+    		featureList.add(pnt);
+			k++;
+    	}
+
+        // NAVIGATION ALGORITHM
+        
+    	var start_p = new PointDetails(Point.fromLngLat(START_LNG, START_LAT));
+        start_p.setVisited(1);
+        var lbl = start_p.decide_label(sensor_coords, polygons);
+        if(lbl>0) {
+        	sensor_coords.get(lbl-1).setVisited(1);
+        	// TODO: get reading
+        }
+        var closest_sensor = start_p.getClosestSensor(sensor_coords);
+        var made_moves = 0;
+        var p = start_p;
+        var path = new ArrayList<Point>();
+        path.add(start_p.getP());
+        while(made_moves<MAX_MOVES) {
+        	//System.out.println(closest_sensor.getP().longitude() + " " + closest_sensor.getP().latitude());
+        	p.set_neighbors();
+        	var  neighbors = p.get_neighbors();
+        	
+        	var minn = 1000.0;
+        	var op = Point.fromLngLat(-1, -1);
+        	var next_pnt = new PointDetails(op);
+        	for(var neighbor : neighbors) {
+        		
+        		if(neighbor.getVisited()==0) {
+        			
+	        		var n_lbl = neighbor.decide_label(sensor_coords, polygons);
+	        		if(!p.clearFlightPath(neighbor,polygons)) continue;
+	        		else
+	        		if(n_lbl==-1) continue;
+	        		else if(n_lbl==closest_sensor.getLabel()) {
+	        			closest_sensor.setVisited(1);
+	        			closest_sensor = neighbor.getClosestSensor(sensor_coords);
+	        			next_pnt = neighbor;
+	        			// TODO: get reading
+	        			break;
+	        		}
+	        		else if(n_lbl==0){
+	        			var num = neighbor.getDistance(closest_sensor);
+	        			if(num<minn) {
+	            			minn = num;
+	            			next_pnt = neighbor;
+	            		}
+	        		}
+	        		else {
+	        			sensor_coords.get(n_lbl-1).setVisited(1);
+	        			var num = neighbor.getDistance(closest_sensor);
+	        			if(num<minn) {
+	            			minn = num;
+	            			next_pnt = neighbor;
+	            		}
+	        			// TODO: get reading
+	        		}
+        		}
+        	}
+        	if(next_pnt.getP()==op) {
+        		//var cs = closest_sensor;
+        		closest_sensor.setVisited(1); 
+        		closest_sensor = p.getClosestSensor(sensor_coords);
+        		//cs.setVisited(0);
+        		continue;
+        	}
+        	next_pnt.setVisited(1);
+			path.add(next_pnt.getP());
+        	made_moves++;
+        	p = next_pnt;
+        }
+        
+        var line = LineString.fromLngLats(path);
+		var line_g = Feature.fromGeometry(line);
+		featureList.add(line_g);
+        int nr=0;
+        for(var s : sensor_coords)
+        	if(s.getVisited()==1)
+        		nr++;
+        System.out.println(nr);
+    	var final_fc = FeatureCollection.fromFeatures(featureList);
+        System.out.println(final_fc.toJson());
+    }
+}

@@ -1,0 +1,10 @@
+INDEX VERSION 1.131+C:\Users\Alex\OneDrive\Desktop\Universitate\Anul 3\InfoLargePrac\CW2\.metadata\.plugins\org.eclipse.jdt.core
+409575044.index
+2871574292.index
+2971701134.index
+2572203833.index
+683241408.index
+2474789153.index
+3461652127.index
+286504536.index
+1280962197.index

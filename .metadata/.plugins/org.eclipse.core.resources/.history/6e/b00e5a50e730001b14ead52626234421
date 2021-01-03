@@ -1,0 +1,7 @@
+package uk.ac.ed.inf.aqmaps;
+
+public class Navigation {
+	private int made_moves;
+	private PointDetails start_p;
+	private ArrayList<Polygon> no_fly_polygons;
+}

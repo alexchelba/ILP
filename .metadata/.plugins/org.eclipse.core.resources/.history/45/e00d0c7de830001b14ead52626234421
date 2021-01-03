@@ -1,0 +1,23 @@
+package uk.ac.ed.inf.aqmaps;
+
+import java.util.ArrayList;
+
+import com.mapbox.geojson.Polygon;
+
+public class Navigation extends App {
+	private int made_moves;
+	private String ans_flightpath;
+	
+	private PointDetails start_p;
+	private ArrayList<Polygon> no_fly_polygons;
+	private ArrayList<Sensor> sensors;
+	private ArrayList<PointDetails> sensor_coords;
+	Navigation(PointDetails sp, ArrayList<Polygon> nfp, ArrayList<Sensor> s, ArrayList<PointDetails> sc) {
+		start_p = sp;
+		no_fly_polygons = nfp;
+		sensors = s;
+		sensor_coords = sc;
+		made_moves=0;
+		ans_flightpath = "";
+	}
+}
