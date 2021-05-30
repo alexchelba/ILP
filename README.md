@@ -1,4 +1,4 @@
-# ILP CW
+# ILP CW (grade: 86%)
 
 This coursework required implementing an algorithm for a virtual drone to fly, under ideal conditions, on pre-defined GeoJSON maps of the university campus.
 The implementation of this project can be found in aqmaps folder. The project is built with Maven. Details of the implementation and sample outputs can be found in the report. Below are detailed specifications of the task.
@@ -37,3 +37,10 @@ The markers on the map have a symbol which is either a lighthouse ("lighthouse" 
       224 ≤ x < 256|  #ff0000  | Red           |    danger
       low battery  |  #000000  | Black         |    cross
       not visited  |  #aaaaaa  | Gray          |  no symbol
+
+# How to run
+First, start up the web server by running java -jar WebServerLite.jar in the WebServer folder.
+Then, in the aqmaps folder, run java -jar target/aqmaps-0.0.1-SNAPSHOT.jar 15 06 2021 55.9444 -3.1878 5678 80, where the arguments are: day, month, year, latitude, longitude, seed and port (Note: I have not inlcuded the seed in any calculations, but must still be entered). To view the path, upload the readings-DD-MM-YYYY.geojson file to GeoJson.
+The available dates are all days through years 2020 and 2021.
+Valid starting locations are within the confinement area and outside of no-fly zones.
+Set up the web server on any port you like, just make sure you use that in the arguements of the app.
