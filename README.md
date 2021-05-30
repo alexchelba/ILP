@@ -42,13 +42,13 @@ The flight of the drone is subject to the following stipulations:
 • the drone life-cycle has a pattern which iterates (i) making a move; and (ii) taking one sensor reading (if in range).
 
     Range    |RGB string |   Colour name | Marker symbol
-  0 ≤ x < 32 |  #00ff00  | Green         |  lighthouse
- 32 ≤ x < 64 |  #40ff00  | Medium Green  |  lighthouse
- 64 ≤ x < 96 |  #80ff00  | Light Green   |  lighthouse
- 96 ≤ x < 128|  #c0ff00  | Lime Green    |  lighthouse
-128 ≤ x < 160|  #ffc000  | Gold          |    danger
-160 ≤ x < 192|  #ff8000  | Orange        |    danger
-192 ≤ x < 224|  #ff4000  | Red / Orange  |    danger
-224 ≤ x < 256|  #ff0000  | Red           |    danger
- low battery |  #000000  | Black         |    cross
- not visited |  #aaaaaa  | Gray          |  no symbol
+    0 ≤ x < 32 |  #00ff00  | Green         |  lighthouse
+    32 ≤ x < 64 |  #40ff00  | Medium Green  |  lighthouse
+    64 ≤ x < 96 |  #80ff00  | Light Green   |  lighthouse
+    96 ≤ x < 128|  #c0ff00  | Lime Green    |  lighthouse
+    128 ≤ x < 160|  #ffc000  | Gold          |    danger
+    160 ≤ x < 192|  #ff8000  | Orange        |    danger
+    192 ≤ x < 224|  #ff4000  | Red / Orange  |    danger
+    224 ≤ x < 256|  #ff0000  | Red           |    danger
+    low battery |  #000000  | Black         |    cross
+    not visited |  #aaaaaa  | Gray          |  no symbol
