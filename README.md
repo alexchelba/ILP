@@ -1,21 +1,10 @@
 # ILP CW
 
-This coursework required implementing an algorithm for a drone to fly on pre-defined GeoJSON maps of the university campus. The JSON files of the maps can be found in the WebServer folder. The implementation of this project can be found in aquamaps folder. The project is built with Maven. 
-Details of the implementation can be found in the report.
+This coursework required implementing an algorithm for a virtual drone to fly, under ideal conditions, on pre-defined GeoJSON maps of the university campus.
+The implementation of this project can be found in aquamaps folder. The project is built with Maven. Details of the implementation and sample outputs can be found in the report.
 
-The task is to program the drone to fly around and collect the sensor readings of air quality and to produce
-scientific visualisations of the data.
-The drone is fitted with a receiver which can download readings from sensors over-the-air, provided that it
-is within 0.0002 degrees of the air quality sensor. Degrees are used as the measure of distance throughout the
-project instead of metres or kilometres to avoid unnecessary conversions between one unit of measurement
-and another. The latitude and longitude of a sensor are expressed in degrees, so we stay with this unit of
-measurement throughout all our calculations. As a convenient simplification, locations expressed using
-latitude and longitude are treated as though they were points on a plane, not points on the surface of a
-sphere.
-In all, there are 99 sensors distributed around the University of Edinburgh’s Central Area but not all of them
-need to be read each day. On any given day, a list of 33 sensors is produced which enumerates the sensors
-which need to be read today. The sensors are battery-powered, and when a receiver takes a reading from a
-sensor it has two components:
+The drone is fitted with a receiver which can download readings from sensors over-the-air, provided that it is within 0.0002 degrees of the air quality sensor. Degrees are used as the measure of distance throughout the project instead of metres or kilometres to avoid unnecessary conversions between one unit of measurement and another. The latitude and longitude of a sensor are expressed in degrees, so we stay with this unit of measurement throughout all our calculations. As a convenient simplification, locations expressed using latitude and longitude are treated as though they were points on a plane, not points on the surface of a sphere.
+In all, there are 99 sensors distributed around the University of Edinburgh’s Central Area but not all of them need to be read each day. On any given day, a list of 33 sensors is produced which enumerates the sensors which need to be read today. The sensors are battery-powered, and when a receiver takes a reading from a sensor it has two components:
 * the reading: this is a character string which should represent a real value between 0.0 (no air pollution was detected) and 256.0 (maximum possible air pollution reading; the sensor capacity is at its limit);
 * the battery: this is a real value expressing the percentage battery charge between 0.0 and 100.0. However, if the battery has less than 10% charge then the sensor reading cannot be considered to be trustworthy because the sensor hardware is known to give false or misleading readings at low power levels. The sensor reading at less than 10% charge might be “null” or “NaN” (Not a Number) but even if the air quality reading looks like a real number it should be discarded as being essentially noise, and the sensor reported
 as needing a new battery.
@@ -35,10 +24,7 @@ In order to help communicate the behaviour of the drone to others, the drone fli
 * marker-color — identical to rgb-string, but will be rendered by http://geojson.io;
 * marker-symbol — a symbol from the Maki icon set (https://labs.mapbox.com/maki-icons/).
 
-The markers on the map have a symbol which is either a lighthouse ("lighthouse" — representing safe
-levels of air pollution); a skull-and-crossbones ("danger" — representing dangerous levels of air pollution);
-or a cross ("cross" — representing low battery). A sensor not visited has no marker-symbol. The marker
-colours are assigned according to the colour mapping for an air quality reading of x.
+The markers on the map have a symbol which is either a lighthouse ("lighthouse" — representing safe levels of air pollution); a skull-and-crossbones ("danger" — representing dangerous levels of air pollution); or a cross ("cross" — representing low battery). A sensor not visited has no marker-symbol. The marker colours are assigned according to the colour mapping for an air quality reading of x.
 
         Range      |RGB string |  Colour name  | Marker symbol
       0 ≤ x < 32   |  #00ff00  | Green         |  lighthouse
