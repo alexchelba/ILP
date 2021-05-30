@@ -1,7 +1,7 @@
 # ILP CW
 
 This coursework required implementing an algorithm for a virtual drone to fly, under ideal conditions, on pre-defined GeoJSON maps of the university campus.
-The implementation of this project can be found in aquamaps folder. The project is built with Maven. Details of the implementation and sample outputs can be found in the report.
+The implementation of this project can be found in aquamaps folder. The project is built with Maven. Details of the implementation and sample outputs can be found in the report. Below are detailed specifications of the task.
 
 The drone is fitted with a receiver which can download readings from sensors over-the-air, provided that it is within 0.0002 degrees of the air quality sensor. Degrees are used as the measure of distance throughout the project instead of metres or kilometres to avoid unnecessary conversions between one unit of measurement and another. The latitude and longitude of a sensor are expressed in degrees, so we stay with this unit of measurement throughout all our calculations. As a convenient simplification, locations expressed using latitude and longitude are treated as though they were points on a plane, not points on the surface of a sphere.
 In all, there are 99 sensors distributed around the University of Edinburgh’s Central Area but not all of them need to be read each day. On any given day, a list of 33 sensors is produced which enumerates the sensors which need to be read today. The sensors are battery-powered, and when a receiver takes a reading from a sensor it has two components:
