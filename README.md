@@ -20,8 +20,7 @@ sensor it has two components:
 * the battery: this is a real value expressing the percentage battery charge between 0.0 and 100.0. However, if the battery has less than 10% charge then the sensor reading cannot be considered to be trustworthy because the sensor hardware is known to give false or misleading readings at low power levels. The sensor reading at less than 10% charge might be “null” or “NaN” (Not a Number) but even if the air quality reading looks like a real number it should be discarded as being essentially noise, and the sensor reported
 as needing a new battery.
 
-Replacing the battery in a sensor is a manual process whereby a researcher from the project is sent to the location of a faulty sensor to swap out the drained battery for a fully-charged one. A novel location addressing system is used to help locate the sensor where the battery needs to be replaced: the What3Words
-There is never more than one sensor in any What3Words tile so the What3Words address can be used as the location of the sensor and the associated mobile phone app guides the user to the What3Words address. This has the advantage that researchers do not need to key in (longitude, latitude) number pairs such as (−3.1887, 55.9452); they can instead type a What3Words address such as rooms.lamp.teach and be taken to the same location.
+The algorithm should not deal with replacing batteries of the sensor.
 All sensors which need to be visited have a latitude which lies between 55.942617 and 55.946233. They also have a longitude which lies between −3.184319 and −3.192473. There is no reason for the drone to be outside this area, so these coordinates define the drone confinement area. If the drone is at location (55.946233,−3.192473) then it is outside the confinement area, and is judged to be malfunctioning.
 The flight of the drone is subject to the following stipulations:
 * the drone flight path has at most 150 moves, each of which is a straight line of length 0.0003 degrees;
@@ -29,14 +28,26 @@ The flight of the drone is subject to the following stipulations:
 * as near as possible, the drone flight path should be a closed loop, where the drone ends up close to where it started from;
 * the drone life-cycle has a pattern which iterates (i) making a move; and (ii) taking one sensor reading (if in range).
 
-        Range    |RGB string |  Colour name  | Marker symbol
-      0 ≤ x < 32 |  #00ff00  | Green         |  lighthouse
-     32 ≤ x < 64 |  #40ff00  | Medium Green  |  lighthouse
-     64 ≤ x < 96 |  #80ff00  | Light Green   |  lighthouse
-     96 ≤ x < 128|  #c0ff00  | Lime Green    |  lighthouse
-    128 ≤ x < 160|  #ffc000  | Gold          |    danger
-    160 ≤ x < 192|  #ff8000  | Orange        |    danger
-    192 ≤ x < 224|  #ff4000  | Red / Orange  |    danger
-    224 ≤ x < 256|  #ff0000  | Red           |    danger
-     low battery |  #000000  | Black         |    cross
-     not visited |  #aaaaaa  | Gray          |  no symbol
+To clarify the last point, the drone must move before taking a reading, even if a sensor is in range of the initial point on the flight path. Additionally, the drone can choose to connect to any sensor which is in range of its current position, not necessarily the nearest one, and it might choose not to connect to a sensor, even if it is in range, but it cannot connect to two or more sensors without making a move between each connection.
+In order to help communicate the behaviour of the drone to others, the drone flight path is to be plotted to a Geo-JSON map which also includes the locations of the sensors plotted using coloured markers which represent the levels of air pollution detected by the sensors. The markers on the map have four properties:
+* location — the What3Words location string;
+* rgb-string — the HTML colour of this marker represented as a hexadecimal Red-Green-Blue string;
+* marker-color — identical to rgb-string, but will be rendered by http://geojson.io;
+* marker-symbol — a symbol from the Maki icon set (https://labs.mapbox.com/maki-icons/).
+
+The markers on the map have a symbol which is either a lighthouse ("lighthouse" — representing safe
+levels of air pollution); a skull-and-crossbones ("danger" — representing dangerous levels of air pollution);
+or a cross ("cross" — representing low battery). A sensor not visited has no marker-symbol. The marker
+colours are assigned according to the colour mapping for an air quality reading of x.
+
+        Range      |RGB string |  Colour name  | Marker symbol
+      0 ≤ x < 32   |  #00ff00  | Green         |  lighthouse
+      32 ≤ x < 64  |  #40ff00  | Medium Green  |  lighthouse
+      64 ≤ x < 96  |  #80ff00  | Light Green   |  lighthouse
+      96 ≤ x < 128 |  #c0ff00  | Lime Green    |  lighthouse
+      128 ≤ x < 160|  #ffc000  | Gold          |    danger
+      160 ≤ x < 192|  #ff8000  | Orange        |    danger
+      192 ≤ x < 224|  #ff4000  | Red / Orange  |    danger
+      224 ≤ x < 256|  #ff0000  | Red           |    danger
+      low battery  |  #000000  | Black         |    cross
+      not visited  |  #aaaaaa  | Gray          |  no symbol
